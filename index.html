@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Level Meter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #noiseLevel {
+            font-size: 48px;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Real-Time Noise Level (dB)</h1>
+    <div id="noiseLevel">Waiting for data...</div>
+
+    <script>
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                source.connect(analyser);
+
+                function calculateNoiseLevel() {
+                    let res = ""
+                    analyser.getByteFrequencyData(dataArray);
+                    
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i] * dataArray[i];
+                    }
+                    if (sum != 0) {
+                        const rms = Math.sqrt(sum / dataArray.length);
+                        const db = 20 * Math.log10(rms);
+                        res = db.toFixed(2) + " dB"
+                    } else {
+                        res = "Invalid"
+                    }
+                
+                    document.getElementById('noiseLevel').textContent = res;
+                    setTimeout(calculateNoiseLevel, 1000);
+                }
+
+                calculateNoiseLevel();
+            })
+            .catch(function(err) {
+                console.error('Error accessing the microphone: ', err);
+            });
+        } else {
+            console.error('getUserMedia not supported in this browser.');
+        }
+    </script>
+
+</body>
+</html>
