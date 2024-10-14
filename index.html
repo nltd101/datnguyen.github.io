@@ -33,7 +33,7 @@
             const analyser = context.createAnalyser();
 
             analyser.smoothingTimeConstant = 0.8;
-            analyser.fftSize = 256;
+          //  analyser.fftSize = 256;
             localDbValues = []; 
             source.connect(analyser);
             analyser.connect(processor);
@@ -41,28 +41,30 @@
 
             processor.onaudioprocess = () => {
 
-                let data = new Uint8Array(analyser.frequencyBinCount);
-                analyser.getByteFrequencyData(data);
+                let data = new Float32Array(analyser.frequencyBinCount);
+                analyser.getFloatTimeDomainData(data);
                 let rms = 0;
-
                 for (var i = 0; i < data.length; i++) {
-                    if (data[i]>120) data[i] = 120
                     rms += data[i]*data[i]
                 }
-                rms = Math.sqrt(rms / data.length);
-                console.log("RMS: " + rms)
 
-                // offset = parseInt(document.getElementById("offset").value);
-                // document.getElementById("offset_value").innerText = offset;
-                value = rms;
-                localDbValues.push(value);
+            
+                rms = rms / data.length
+		
+                rms = Math.sqrt(rms)
+                if (rms != 0)
+		{
+                	value = 20 * Math.log10(rms/0.00002);
+                	localDbValues.push(value);
+                	if (localDbValues.length > context.sampleRate/analyser.frequencyBinCount ) { localDbValues.shift();}
+		}
             };
 
                 function calculateNoiseLevel() {
                     let volume = Math.round(localDbValues.reduce((a,b) => a+b, 0) / localDbValues.length);
                     //var volume = Math.round(Math.max.apply(null, localDbValues));
                     if (!isFinite(volume)) volume = 0;  // we don't want/need negative decibels in that case
-                    localDbValues = []; // clear previous values
+                
                     if (volume != 0) {
                         const db = volume
                         if (db>100) {
