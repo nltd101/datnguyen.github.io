@@ -27,57 +27,68 @@
         if (navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({ audio: true })
             .then(function(stream) {
-                
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaStreamSource(stream);
-                const analyser = audioContext.createAnalyser();
-                analyser.fftSize = 2048;
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                
-                source.connect(analyser);
+                const context = new AudioContext();
+            const source = context.createMediaStreamSource(stream);
+            const processor = context.createScriptProcessor(2048, 1, 1);
+            const analyser = context.createAnalyser();
+
+            analyser.smoothingTimeConstant = 0.8;
+            analyser.fftSize = 256;
+            localDbValues = []; 
+            source.connect(analyser);
+            analyser.connect(processor);
+            processor.connect(context.destination);
+
+            processor.onaudioprocess = () => {
+
+                let data = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(data);
+                let rms = 0;
+
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i]>120) data[i] = 120
+                    rms += data[i]*data[i]
+                }
+                rms = Math.sqrt(rms / data.length);
+                console.log("RMS: " + rms)
+
+                offset = parseInt(document.getElementById("offset").value);
+                document.getElementById("offset_value").innerText = offset;
+                value = rms + offset;
+                localDbValues.push(value);
+            };
 
                 function calculateNoiseLevel() {
-                    let res = ""
-                    analyser.getByteFrequencyData(dataArray);
-                      // Calculate the average amplitude
-                    let sum = 0;
-                    for (let i = 0; i < dataArray.length; i++) {
-                        sum += Math.abs(dataArray[i] - 128); // Normalize to 0-128
-                    }
-                    const average = sum / dataArray.length;
-
-                    // Convert average amplitude to decibels
-                    const db = 20 * Math.log10(average / 128); // Reference level of 128
-
-                    if (sum != 0) {
-                        const rms = Math.sqrt(sum / dataArray.length);
-                        const db = 20 * Math.log10(rms);
+                    let volume = Math.round(localDbValues.reduce((a,b) => a+b) / localDbValues.length);
+                    //var volume = Math.round(Math.max.apply(null, localDbValues));
+                    if (!isFinite(volume)) volume = 0;  // we don't want/need negative decibels in that case
+                    localDbValues = []; // clear previous values
+                    if (volume != 0) {
+                        const db = volume
                         if (db>100) {
-                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                            document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
                             document.getElementById('noiseLevel').style.color = "red";
                             document.getElementById('extraInformation').textContent="Tổn thương thính giác ngay lập tức có thể xảy ra nếu không sử dụng bảo vệ tai."
                         } else if (db > 85) {
-                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                            document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
                             document.getElementById('noiseLevel').style.color = "red";
                             document.getElementById('extraInformation').textContent="Có thể gây tổn thương thính giác sau khoảng 8 giờ tiếp xúc ở mức 85 dB. Ở 100 dB, tổn thương có thể xảy ra trong ít hơn 15 phút."
                         } else if (db > 60) {
-                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn vừa phải";
+                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn vừa phải";
                             document.getElementById('noiseLevel').style.color = "orange";
                             document.getElementById('extraInformation').textContent=" Tiếp xúc liên tục ở mức này có thể gây tổn thương thính giác nhỏ sau một thời gian dài."
                         } else if (db > 30) {
-                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn an toàn";
+                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
                             document.getElementById('noiseLevel').style.color = "green";
                             document.getElementById('extraInformation').textContent="Không gây hại cho thính giác khi tiếp xúc trong thời gian dài. Đây là mức âm thanh hàng ngày thường gặp."
                         } else {
-                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn an toàn";
+                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
                             document.getElementById('noiseLevel').style.color = "green";
                             document.getElementById('extraInformation').textContent="Không ảnh hưởng đến sức khỏe, đây là mức âm thanh rất yên tĩnh và an toàn."
                         }
-                        res =  db.toFixed(2) + " dB"
                     } else {
                         document.getElementById('noiseLevel').textContent = "Invalid";
                     }
-                
                    
                     setTimeout(calculateNoiseLevel, 100);
                 }
