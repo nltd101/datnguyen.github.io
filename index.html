@@ -18,9 +18,11 @@
 </head>
 <body>
 
-    <h1>Real-Time Noise Level (dB)</h1>
-    <div id="noiseLevel">Waiting for data...</div>
+    <h3>Đo tiếng ồn (dB)</h3>
+    <div style="font-size: large;" id="noiseLevel">Đang tính toán...</div>
+    <p style="font-size: medium;"  id="extraInformation">
 
+    </textarea>
     <script>
         if (navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({ audio: true })
@@ -42,16 +44,38 @@
                     for (let i = 0; i < dataArray.length; i++) {
                         sum += dataArray[i] * dataArray[i];
                     }
+
                     if (sum != 0) {
                         const rms = Math.sqrt(sum / dataArray.length);
                         const db = 20 * Math.log10(rms);
-                        res = db.toFixed(2) + " dB"
+                        if (db>100) {
+                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                            document.getElementById('noiseLevel').style.color = "red";
+                            document.getElementById('extraInformation').textContent="Tổn thương thính giác ngay lập tức có thể xảy ra nếu không sử dụng bảo vệ tai."
+                        } else if (db > 85) {
+                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                            document.getElementById('noiseLevel').style.color = "red";
+                            document.getElementById('extraInformation').textContent="Có thể gây tổn thương thính giác sau khoảng 8 giờ tiếp xúc ở mức 85 dB. Ở 100 dB, tổn thương có thể xảy ra trong ít hơn 15 phút."
+                        } else if (db > 60) {
+                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn vừa phải";
+                            document.getElementById('noiseLevel').style.color = "orange";
+                            document.getElementById('extraInformation').textContent=" Tiếp xúc liên tục ở mức này có thể gây tổn thương thính giác nhỏ sau một thời gian dài."
+                        } else if (db > 30) {
+                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn an toàn";
+                            document.getElementById('noiseLevel').style.color = "green";
+                            document.getElementById('extraInformation').textContent="Không gây hại cho thính giác khi tiếp xúc trong thời gian dài. Đây là mức âm thanh hàng ngày thường gặp."
+                        } else {
+                            document.getElementById('noiseLevel').textContent = db.toFixed(2) + " dB - Tiếng ồn an toàn";
+                            document.getElementById('noiseLevel').style.color = "green";
+                            document.getElementById('extraInformation').textContent="Không ảnh hưởng đến sức khỏe, đây là mức âm thanh rất yên tĩnh và an toàn."
+                        }
+                        res =  db.toFixed(2) + " dB"
                     } else {
-                        res = "Invalid"
+                        document.getElementById('noiseLevel').textContent = "Invalid";
                     }
                 
-                    document.getElementById('noiseLevel').textContent = res;
-                    setTimeout(calculateNoiseLevel, 1000);
+                   
+                    setTimeout(calculateNoiseLevel, 100);
                 }
 
                 calculateNoiseLevel();
