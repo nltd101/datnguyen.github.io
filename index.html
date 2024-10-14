@@ -59,7 +59,7 @@
             };
 
                 function calculateNoiseLevel() {
-                    let volume = Math.round(localDbValues.reduce((a,b) => a+b) / localDbValues.length);
+                    let volume = Math.round(localDbValues.reduce((a,b) => a+b, 0) / localDbValues.length);
                     //var volume = Math.round(Math.max.apply(null, localDbValues));
                     if (!isFinite(volume)) volume = 0;  // we don't want/need negative decibels in that case
                     localDbValues = []; // clear previous values
