@@ -1,8 +1,10 @@
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ứng dụng đo tiếng ồn trực tuyến giúp bạn kiểm tra mức độ âm thanh trong môi trường của mình.">
+    <meta name="description"
+        content="Ứng dụng đo tiếng ồn trực tuyến giúp bạn kiểm tra mức độ âm thanh trong môi trường của mình.">
     <meta name="keywords" content="ứng dụng đo tiếng ồn, máy đo độ ồn, đo tiếng ồn online">
     <title>Ứng Dụng Đo Tiếng Ồn</title>
     <style>
@@ -11,100 +13,179 @@
             text-align: center;
             margin-top: 50px;
         }
+
         #noiseLevel {
             font-size: 48px;
             color: #4CAF50;
         }
+        ul {
+            list-style-type: none;
+            padding: 0%;
+        }
+        li {
+            margin: 5px 0;
+        }
+        .container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px;
+            padding: 20px;
+        }
+        .item {
+            padding: 20px;
+            margin: 5px;
+            text-align: center;
+            border-radius: 5px;
+            flex-basis: 20%; /* Flex item width */
+            height: 300px;
+        }
+
+        /* Horizontal layout for desktop (PC) */
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row; /* Horizontal layout */
+            }
+        }
+
+        /* Vertical layout for mobile */
+        @media (max-width: 767px) {
+            .container {
+                flex-direction: column; /* Vertical layout */
+            }
+            .item {
+                flex-basis: 100%; /* Make items full-width on mobile */
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <h3>Đo tiếng ồn (dB)</h3>
+    <div class="container">
+        <div class="item">
+            <h3>Độ ồn</h3>
     <div style="font-size: large;" id="noiseLevel">Đang tính toán...</div>
-    <p style="font-size: medium;"  id="extraInformation">
+    <p style="font-size: medium;" id="extraInformation">
 
-    </textarea>
-    <script>
-        if (navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(function(stream) {
-                const context = new AudioContext();
-            const source = context.createMediaStreamSource(stream);
-            const processor = context.createScriptProcessor(2048, 1, 1);
-            const analyser = context.createAnalyser();
+        </textarea>
+        <script>
+            var lastVol = 0
+            window.onload = () => {
+                if (navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(function (stream) {
+                            const context = new AudioContext();
+                            const source = context.createMediaStreamSource(stream);
+                            const processor = context.createScriptProcessor(2048, 1, 1);
+                            const analyser = context.createAnalyser();
 
-            analyser.smoothingTimeConstant = 0.8;
-          //  analyser.fftSize = 256;
-            localDbValues = []; 
-            source.connect(analyser);
-            analyser.connect(processor);
-            processor.connect(context.destination);
+                            analyser.smoothingTimeConstant = 0.8;
+                            localDbValues = [];
+                            source.connect(analyser);
+                            analyser.connect(processor);
+                            processor.connect(context.destination);
 
-            processor.onaudioprocess = () => {
+                            processor.onaudioprocess = () => {
 
-                let data = new Float32Array(analyser.frequencyBinCount);
-                analyser.getFloatTimeDomainData(data);
-                let rms = 0;
-                for (var i = 0; i < data.length; i++) {
-                    rms += data[i]*data[i]
+                                let data = new Float32Array(analyser.frequencyBinCount);
+                                analyser.getFloatTimeDomainData(data);
+                                let rms = 0;
+                                for (var i = 0; i < data.length; i++) {
+                                    rms += data[i] * data[i]
+                                }
+
+
+                                rms = rms / data.length
+
+                                rms = Math.sqrt(rms)
+                                if (rms != 0) {
+                                    value = 20 * Math.log10(rms / 0.00002);
+                                    localDbValues.push(value);
+                                    if (localDbValues.length > context.sampleRate / analyser.frequencyBinCount) { localDbValues.shift(); }
+                                }
+                            };
+
+                            function calculateNoiseLevel() {
+                                let volume = Math.round(localDbValues.reduce((a, b) => a + b, 0) / localDbValues.length);
+                               
+                                if (!isFinite(volume)) volume = 0;
+
+                                if (volume != 0) {
+                                    const db = volume
+                                    if (db > 100) {
+                                        document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                                        document.getElementById('noiseLevel').style.color = "red";
+                                        document.getElementById('extraInformation').textContent = "Tổn thương thính giác ngay lập tức có thể xảy ra nếu không sử dụng bảo vệ tai."
+                                    } else if (db > 85) {
+                                        document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
+                                        document.getElementById('noiseLevel').style.color = "red";
+                                        document.getElementById('extraInformation').textContent = "Có thể gây tổn thương thính giác sau khoảng 8 giờ tiếp xúc ở mức 85 dB. Ở 100 dB, tổn thương có thể xảy ra trong ít hơn 15 phút."
+                                    } else if (db > 60) {
+                                        document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn vừa phải";
+                                        document.getElementById('noiseLevel').style.color = "orange";
+                                        document.getElementById('extraInformation').textContent = " Tiếp xúc liên tục ở mức này có thể gây tổn thương thính giác nhỏ sau một thời gian dài."
+                                    } else if (db > 30) {
+                                        document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
+                                        document.getElementById('noiseLevel').style.color = "green";
+                                        document.getElementById('extraInformation').textContent = "Không gây hại cho thính giác khi tiếp xúc trong thời gian dài. Đây là mức âm thanh hàng ngày thường gặp."
+                                    } else {
+                                        document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
+                                        document.getElementById('noiseLevel').style.color = "green";
+                                        document.getElementById('extraInformation').textContent = "Không ảnh hưởng đến sức khỏe, đây là mức âm thanh rất yên tĩnh và an toàn."
+                                    }
+                                } else {
+                                    document.getElementById('noiseLevel').textContent = "0";
+                                }
+                                lastVol = volume
+                                setTimeout(calculateNoiseLevel, 100);
+                            }
+
+                            calculateNoiseLevel();
+                        })
+                        .catch(function (err) {
+                            console.error('Error accessing the microphone: ', err);
+                        });
+                } else {
+                    console.error('getUserMedia not supported in this browser.');
                 }
+            }
+        </script>
 
-            
-                rms = rms / data.length
-		
-                rms = Math.sqrt(rms)
-                if (rms != 0)
-		{
-                	value = 20 * Math.log10(rms/0.00002);
-                	localDbValues.push(value);
-                	if (localDbValues.length > context.sampleRate/analyser.frequencyBinCount ) { localDbValues.shift();}
-		}
-            };
-
-                function calculateNoiseLevel() {
-                    let volume = Math.round(localDbValues.reduce((a,b) => a+b, 0) / localDbValues.length);
-                    //var volume = Math.round(Math.max.apply(null, localDbValues));
-                    if (!isFinite(volume)) volume = 0;  // we don't want/need negative decibels in that case
-                
-                    if (volume != 0) {
-                        const db = volume
-                        if (db>100) {
-                            document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
-                            document.getElementById('noiseLevel').style.color = "red";
-                            document.getElementById('extraInformation').textContent="Tổn thương thính giác ngay lập tức có thể xảy ra nếu không sử dụng bảo vệ tai."
-                        } else if (db > 85) {
-                            document.getElementById('noiseLevel').textContent = volume + " dB - Cảnh báo: Mức độ tiếng ồn cao!";
-                            document.getElementById('noiseLevel').style.color = "red";
-                            document.getElementById('extraInformation').textContent="Có thể gây tổn thương thính giác sau khoảng 8 giờ tiếp xúc ở mức 85 dB. Ở 100 dB, tổn thương có thể xảy ra trong ít hơn 15 phút."
-                        } else if (db > 60) {
-                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn vừa phải";
-                            document.getElementById('noiseLevel').style.color = "orange";
-                            document.getElementById('extraInformation').textContent=" Tiếp xúc liên tục ở mức này có thể gây tổn thương thính giác nhỏ sau một thời gian dài."
-                        } else if (db > 30) {
-                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
-                            document.getElementById('noiseLevel').style.color = "green";
-                            document.getElementById('extraInformation').textContent="Không gây hại cho thính giác khi tiếp xúc trong thời gian dài. Đây là mức âm thanh hàng ngày thường gặp."
-                        } else {
-                            document.getElementById('noiseLevel').textContent = volume + " dB - Tiếng ồn an toàn";
-                            document.getElementById('noiseLevel').style.color = "green";
-                            document.getElementById('extraInformation').textContent="Không ảnh hưởng đến sức khỏe, đây là mức âm thanh rất yên tĩnh và an toàn."
-                        }
-                    } else {
-                        document.getElementById('noiseLevel').textContent = "Invalid";
-                    }
-                   
-                    setTimeout(calculateNoiseLevel, 100);
-                }
-
-                calculateNoiseLevel();
-            })
-            .catch(function(err) {
-                console.error('Error accessing the microphone: ', err);
-            });
-        } else {
-            console.error('getUserMedia not supported in this browser.');
+</div>
+<div class="item">
+<ul id="numberList">
+</ul>
+<button id="addNumberBtn">Ghi nhận</button>
+<button id="resetBtn">Đặt lại</button>
+<script>
+    const addbutton = document.getElementById('addNumberBtn');
+    const resetButton = document.getElementById('resetBtn');
+    const list = document.getElementById('numberList');
+    resetButton.addEventListener('click', function() {
+        while( list.firstChild ){
+            list.removeChild( list.firstChild );
         }
-    </script>
+    })
+    // Add event listener to the button
+    addbutton.addEventListener('click', function() {
+        // Create a new list item (li)
+        const listItem = document.createElement('li');
+        
+        // Set the content of the list item to the current counter value
+        listItem.textContent = lastVol;
 
+        // Append the list item to the list
+        list.appendChild(listItem);
+        if (list.children.length > 5) {
+            // Remove the first (oldest) item from the list
+            list.removeChild(list.firstChild);
+        }
+        // Increment the counter
+    });
+</script>
+</div>
+</div>
 </body>
 </html>
